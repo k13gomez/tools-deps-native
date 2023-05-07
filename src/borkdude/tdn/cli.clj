@@ -12,8 +12,7 @@
    [org.eclipse.aether.resolution VersionRangeRequest]))
 
 (def default-repos
-  {"central" {:url "https://repo1.maven.org/maven2/"}
-   "clojars" {:url "https://repo.clojars.org/"}})
+  maven/standard-repos)
 
 (defn usage []
   (println
@@ -106,12 +105,17 @@ Use tools-deps.edn help <cmd> to get more specific help"))
   [args]
   (if-let [lib-name (first args)]
     (let [lib (symbol lib-name)
-          repos (cond-> maven/standard-repos
+          repos (cond-> default-repos
                   (.exists (io/file "deps.edn"))
                   (merge
-                    (-> (slurp "deps.edn")
-                        edn/read-string
-                        :mvn/repos)))
+                    (try
+                      (-> (slurp "deps.edn")
+                          (edn/read-string)
+                          (update :mvn/repos (fnil identity default-repos))
+                          (deps/create-basis)
+                          (get :mvn/repos))
+                      (catch Exception _
+                        default-repos))))
           local-repo maven/default-local-repo
           system ^RepositorySystem (session/retrieve-local :mvn/system #(maven/make-system))
           settings ^Settings (session/retrieve :mvn/settings #(maven/get-settings))
