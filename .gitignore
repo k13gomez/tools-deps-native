@@ -12,3 +12,4 @@ classes
 native-image-args.txt
 /tools.bbuild
 .cache
+.clj-kondo

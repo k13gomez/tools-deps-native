@@ -3,7 +3,13 @@
    [clojure.edn :as edn]
    [clojure.java.io :as io]
    [clojure.tools.deps :as deps]
-   [babashka.fs :as fs]))
+   [babashka.fs :as fs]
+   [clojure.tools.deps.util.maven :as maven]
+   [clojure.tools.deps.util.session :as session])
+  (:import
+   [org.apache.maven.settings Settings]
+   [org.eclipse.aether RepositorySystem RepositorySystemSession]
+   [org.eclipse.aether.resolution VersionRangeRequest]))
 
 (def default-repos
   {"central" {:url "https://repo1.maven.org/maven2/"}
@@ -15,6 +21,7 @@
         "help | "
         "deps | "
         "create-basis | "
+        "find-versions | "
         "root-deps | "
         "slurp-deps | "
         "user-deps-path"
@@ -40,6 +47,11 @@ Sources are merged in the order - :root, :user, :project, :extra.
 
 Aliases refer to argmaps in the merged deps that will be supplied to the basis
 subprocesses (tool, resolve-deps, make-classpath-map).")
+
+      "find-versions" (println "find-versions <group-id/artifact-id>
+
+Output the versions available for the specified dependency.")
+
       "root-deps" (println "root-deps
 
 Read and output the root deps.edn resource from the classpath at the path
@@ -60,6 +72,7 @@ Note that it's possible no file may exist at this location."))
           help  show this help message
           deps  output a claspath map from a deps map
   create-basis  output a basis from a set of deps sources and a set of aliases
+ find-versions  output a list of version numbers for the given dependency
      root-deps  output the root deps.edn
     slurp-deps  read, canonicalize and output a deps.edn file
 user-deps-path  output the path to the users deps.edn file
@@ -86,6 +99,33 @@ Use tools-deps.edn help <cmd> to get more specific help"))
       (binding [*out* *err*]
         (throw
          (ex-info (str"Invalid argument " deps ", expected a map") {}))))))
+
+(def ^:private version-query "(,]")
+
+(defn find-versions
+  [args]
+  (if-let [lib-name (first args)]
+    (let [lib (symbol lib-name)
+          repos (cond-> maven/standard-repos
+                  (.exists (io/file "deps.edn"))
+                  (merge
+                    (-> (slurp "deps.edn")
+                        edn/read-string
+                        :mvn/repos)))
+          local-repo maven/default-local-repo
+          system ^RepositorySystem (session/retrieve-local :mvn/system #(maven/make-system))
+          settings ^Settings (session/retrieve :mvn/settings #(maven/get-settings))
+          session ^RepositorySystemSession (session/retrieve-local :mvn/session #(maven/make-session system settings local-repo))
+          artifact (maven/coord->artifact lib {:mvn/version version-query})
+          req (VersionRangeRequest. artifact (maven/remote-repos repos settings) nil)
+          result (.resolveVersionRange system session req)
+          versions (.getVersions result)]
+      (when (seq versions)
+        (->> versions
+             (map str)
+             (into [])
+             (prn))))
+    (throw (ex-info "invalid arguments, <lib-group-id/lib-artifact-id> is required" {}))))
 
 (defn deps [args]
   (let [arg  (first args)
@@ -114,6 +154,7 @@ Use tools-deps.edn help <cmd> to get more specific help"))
       (case arg
         :deps           (deps (rest args))
         :create-basis   (create-basis (rest args))
+        :find-versions  (find-versions (rest args))
         :root-deps      (println (deps/root-deps))
         :slurp-deps     (println (apply slurp-deps (rest args)))
         :user-deps-path (println (deps/user-deps-path))

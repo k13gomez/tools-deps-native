@@ -7,13 +7,19 @@
   nrepl/bencode             {:mvn/version "1.1.0"}
   babashka/fs               {:mvn/version "0.5.20"}}
  :paths   ["src" "resources"]
- :aliases {:compile-main
+ :aliases {:repl
+           {:extra-deps {nrepl/nrepl {:mvn/version "0.8.3"}
+                         cider/cider-nrepl {:mvn/version "0.25.6"}}
+            :main-opts ["-m" "nrepl.cmdline" "--interactive" "--middleware" "[\"cider.nrepl/cider-middleware\"]"]}
+
+           :compile-main
            {:main-opts ["-e" "(compile 'borkdude.tdn.main)"]
             :jvm-opts  ["-Dclojure.compiler.direct-linking=true"]}
 
            :compile {:main-opts  ["-m" "borkdude.tdn.main"]
                      :extra-deps {babashka/fs {:mvn/version "0.4.19"}}
                      :extra-paths ["classes"]}
+
            :test
            {:extra-paths ["test"]
             :extra-deps
