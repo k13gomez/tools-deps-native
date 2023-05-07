@@ -2,6 +2,7 @@
   (:require
    [clojure.edn :as edn]
    [clojure.java.io :as io]
+   [clojure.data.json :as json]
    [clojure.tools.deps :as deps]
    [babashka.fs :as fs]
    [clojure.tools.deps.util.maven :as maven]
@@ -127,7 +128,7 @@ Use tools-deps.edn help <cmd> to get more specific help"))
       (->> (map str versions)
            (reverse)
            (into [])
-           (prn)))
+           (json/pprint)))
     (throw (ex-info "invalid arguments, <lib-group-id/lib-artifact-id> is required" {}))))
 
 (defn deps [args]
