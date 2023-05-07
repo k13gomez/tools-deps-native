@@ -120,11 +120,10 @@ Use tools-deps.edn help <cmd> to get more specific help"))
           req (VersionRangeRequest. artifact (maven/remote-repos repos settings) nil)
           result (.resolveVersionRange system session req)
           versions (.getVersions result)]
-      (when (seq versions)
-        (->> versions
-             (map str)
-             (into [])
-             (prn))))
+      (->> (map str versions)
+           (reverse)
+           (into [])
+           (prn)))
     (throw (ex-info "invalid arguments, <lib-group-id/lib-artifact-id> is required" {}))))
 
 (defn deps [args]
