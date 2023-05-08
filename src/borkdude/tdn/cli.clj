@@ -106,6 +106,7 @@ Use tools-deps.edn help <cmd> to get more specific help"))
   [args]
   (if-let [lib-name (first args)]
     (let [lib (symbol lib-name)
+          opt-set (set (rest args))
           repos (cond-> default-repos
                   (.exists (io/file "deps.edn"))
                   (merge
@@ -124,11 +125,19 @@ Use tools-deps.edn help <cmd> to get more specific help"))
           artifact (maven/coord->artifact lib {:mvn/version version-query})
           req (VersionRangeRequest. artifact (maven/remote-repos repos settings) nil)
           result (.resolveVersionRange system session req)
-          versions (.getVersions result)]
-      (->> (map str versions)
-           (reverse)
-           (into [])
-           (json/pprint)))
+          versions (->> (.getVersions result)
+                        (map str)
+                        (reverse)
+                        (into []))]
+      (cond
+        (opt-set "--json")
+        (println (json/write-str versions))
+
+        (opt-set "--edn")
+        (prn versions)
+
+        :else
+        (run! println versions)))
     (throw (ex-info "invalid arguments, <lib-group-id/lib-artifact-id> is required" {}))))
 
 (defn deps [args]
