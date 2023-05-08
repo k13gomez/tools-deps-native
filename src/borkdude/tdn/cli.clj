@@ -114,7 +114,6 @@ Use tools-deps.edn help <cmd> to get more specific help"))
                       (-> (slurp "deps.edn")
                           (edn/read-string)
                           (update :mvn/repos (fnil identity default-repos))
-                          (deps/create-basis)
                           (get :mvn/repos))
                       (catch Exception _
                         default-repos))))
